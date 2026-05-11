@@ -9,11 +9,6 @@ func _can_handle(object: Object) -> bool:
 func _parse_begin(object: Object) -> void:
 	var Builder = object.get_parent()
 
-	var reload_button = Button.new()
-	reload_button.text = "Reload Surfaces"
-	reload_button.pressed.connect(Builder.UpdateSurfaces)
-	add_custom_control(reload_button)
-
 	var surface_button = Button.new()
 	if object.HasSurface:
 		surface_button.text = "Remove Surface Here"

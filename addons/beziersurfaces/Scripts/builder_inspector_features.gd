@@ -5,11 +5,6 @@ func _can_handle(object: Object) -> bool:
 	return object is BezierSurfaceBuilder
 
 func _parse_begin(object: Object) -> void:
-	var progress_bar = ProgressBar.new()
-	progress_bar.max_value = 1
-	progress_bar.value = object.LoadPercent
-	add_custom_control(progress_bar)
-
 	var reload_button = Button.new()
 	reload_button.text = "Reload Surfaces"
 	reload_button.pressed.connect(object.UpdateSurfaces)
