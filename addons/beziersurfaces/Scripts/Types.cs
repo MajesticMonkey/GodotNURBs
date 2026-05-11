@@ -282,7 +282,72 @@ namespace BezierSurfaces.Types
 				}
 				return product;
 			}
-			
+			/*
+			public Matrix GPUProduct(Matrix that)
+			{
+				this.Compatible(that);
+
+				var rd = RenderingServer.CreateLocalRenderingDevice();
+				var shaderFile = GD.Load<RDShaderFile>("res://addons/beziersurfaces/Scripts/MultiplyMatricies.glsl");
+				var shaderBytecode = shaderFile.GetSpirV();
+				var shader = rd.ShaderCreateFromSpirV(shaderBytecode);
+
+				uint[] dimensions = [(uint)this.M.GetLength(0), (uint)this.M.GetLength(1), (uint)that.M.GetLength(0), (uint)that.M.GetLength(1), (uint)this.M.GetLength(0), (uint)that.M.GetLength(1)];
+
+				float[] flatThis = Flatten(this.M);
+				float[] flatThat = Flatten(that.M);
+				float[] flatProduct = new float[this.M.GetLength(0) * that.M.GetLength(1)];
+
+				// Create the byte arrays for the buffers
+				byte[] inputBytesDimensions = new byte[dimensions.Length * sizeof(float)];
+				byte[] inputBytesThis = new byte[flatThis.Length * sizeof(float)];
+				byte[] inputBytesThat = new byte[flatThat.Length * sizeof(float)];
+				byte[] inputBytesProduct = new byte[flatProduct.Length * sizeof(float)];
+				
+				// Copy the data into the byte arrays
+				Buffer.BlockCopy(dimensions, 0, inputBytesDimensions, 0, inputBytesDimensions.Length);
+				Buffer.BlockCopy(flatThis, 0, inputBytesThis, 0, inputBytesThis.Length);
+				Buffer.BlockCopy(flatThat, 0, inputBytesThat, 0, inputBytesThat.Length);
+				Buffer.BlockCopy(flatProduct, 0, inputBytesProduct, 0, inputBytesProduct.Length);
+				
+				// Create the buffers
+				var bufferDims = rd.StorageBufferCreate((uint)inputBytesDimensions.Length, inputBytesDimensions);
+				var bufferThis = rd.StorageBufferCreate((uint)inputBytesThis.Length, inputBytesThis);
+				var bufferThat = rd.StorageBufferCreate((uint)inputBytesThat.Length, inputBytesThat);
+				var bufferProduct = rd.StorageBufferCreate((uint)inputBytesProduct.Length, inputBytesProduct);	
+
+				// Create Uniforms
+				var uDims = new RDUniform { UniformType = RenderingDevice.UniformType.StorageBuffer, Binding = 0 };
+				var uThis = new RDUniform { UniformType = RenderingDevice.UniformType.StorageBuffer, Binding = 1 };
+				var uThat = new RDUniform { UniformType = RenderingDevice.UniformType.StorageBuffer, Binding = 2 };
+				var uProduct = new RDUniform { UniformType = RenderingDevice.UniformType.StorageBuffer, Binding = 3 };
+
+				// Bind the buffers to the shader
+				uDims.AddId(bufferDims);
+				uThis.AddId(bufferThis);
+				uThat.AddId(bufferThat);
+				uProduct.AddId(bufferProduct);
+				var uniformSet = rd.UniformSetCreate([uDims, uThis, uThat, uProduct], shader, 0);
+
+				// Create the compute pipeline
+				var pipeline = rd.ComputePipelineCreate(shader);
+				var computeList = rd.ComputeListBegin();
+				rd.ComputeListBindComputePipeline(computeList, pipeline);
+				rd.ComputeListBindUniformSet(computeList, uniformSet, 0);
+				rd.ComputeListDispatch(computeList, xGroups: dimensions[4], yGroups: dimensions[5], zGroups: dimensions[5]);
+				rd.ComputeListEnd();
+				rd.Submit();
+				rd.Sync();
+
+				var outputBytes = rd.BufferGetData(bufferProduct);
+				var flatOutput = new float[dimensions[4] * dimensions[5]];
+				Buffer.BlockCopy(outputBytes, 0, flatOutput, 0, outputBytes.Length);
+
+				rd.FreeRid(shader);
+
+				return Expand(flatOutput, dimensions[4], dimensions[5]);				
+			}
+			*/
 			public float DotProduct(Matrix that, int n, int m)
 			{
 				float dot = 0;

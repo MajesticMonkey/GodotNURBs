@@ -1,7 +1,7 @@
 using Godot;
 using Godot.Collections;
 using System;
-using static BezierSurfaceBuilder.BezierSurfaceBuilder;
+using BezierSurfaces;
 
 namespace BezierSurfaces
 {
@@ -25,7 +25,7 @@ namespace BezierSurfaces
 				HasSurface = true;
 				NotifyPropertyListChanged();
 				var forklift = GetParent();
-				if (forklift is BezierSurfaceBuilder.BezierSurfaceBuilder builder)
+				if (forklift is BezierSurfaceBuilder builder)
 				{
 					builder.CreateSurfaceExternally(Loc);
 				}
@@ -44,7 +44,7 @@ namespace BezierSurfaces
 				HasSurface = false;
 				NotifyPropertyListChanged();
 				var forklift = GetParent();
-				if (forklift is BezierSurfaceBuilder.BezierSurfaceBuilder builder)
+				if (forklift is BezierSurfaceBuilder builder)
 				{
 					builder.RemoveSurfaceExternally(Loc);
 				}
