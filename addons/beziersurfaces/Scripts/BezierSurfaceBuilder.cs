@@ -60,11 +60,17 @@ namespace BezierSurfaces
 
 		public ByteVector2 SSize = new ByteVector2(0, 0); // Surface Size (Nummber of game units a surface extends over, only applies to creation of control points.)
 		
-		//[ExportGroup("Material")]
+		[ExportGroup("Material")]
+		[Export]
+		public Material SurfaceMaterial;
+
+		//[ExportGroup("Level of Detail")]
 		//[Export]
-		//public ShaderMaterial NormalShower = GD.Load<ShaderMaterial>("res://addons/beziersurfaces/Textures/NormalShower.tres");
-		// Currently Defunct variable for applying a material or shader to the surface.
+		public Camera3D LODCamera; // Camera used for LOD, currently defunct.
+		//[Export]
+		public Godot.Collections.Array<Vector2> LODDistances; // X is the distance it activates, Y is the number of verticies it skips when that happens. Currently defunct.
 		
+
 		public Matrix NB;
 		public Matrix MB;
 		public Matrix NBD;
