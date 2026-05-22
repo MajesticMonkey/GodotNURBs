@@ -36,6 +36,10 @@ namespace BezierSurfaces
 				Matrix MB => parent.MB;
 				Matrix NBD => parent.NBD;
 				Matrix MBD => parent.MBD;
+				Matrix NPB => parent.NPB;
+				Matrix MPB => parent.MPB;
+				Matrix NPBD => parent.NPBD;
+				Matrix MPBD => parent.MPBD;
 
 				Vector2 ControlPointSpacing => parent.ControlPointSpacing;
 
@@ -178,15 +182,10 @@ namespace BezierSurfaces
 			{
 				var LODedSVMSize = GetLODedSVMSize();
 
-				var tCN = GetControlNodes();
+				var CN = GetControlNodes();
 
-				var tNB = NB;
-				var tMB = MB;
-				var tNBD = NBD;
-				var tMBD = MBD;
-
-				Vector3[,] STM = await Task.Run(() => GetSurfaceTransforms(tNB, tMB, tCN, LODedSVMSize));
-				Vector3[,] SNM = await Task.Run(() => GetSurfaceNormals(tNB, tMB, tNBD, tMBD, tCN, LODedSVMSize));
+				Vector3[,] STM = await Task.Run(() => GetSurfaceTransforms(NB, MB, NPB, MPB, CN, LODedSVMSize));
+				Vector3[,] SNM = await Task.Run(() => GetSurfaceNormals(NB, MB, NBD, MBD, NPB, MPB, NPBD, MPBD, CN, LODedSVMSize));
 
 				ArrayMesh ArrMesh = new ArrayMesh();
 
@@ -207,7 +206,7 @@ namespace BezierSurfaces
 			}
 
 			#region Surface Calculations
-			private static Vector3[,] GetSurfaceTransforms(Matrix NB, Matrix MB, Vector3[,] CN, ByteVector2 LODedSVMSize)
+			private static Vector3[,] GetSurfaceTransforms(Matrix NB, Matrix MB, Matrix NPB, Matrix MPB, Vector3[,] CN, ByteVector2 LODedSVMSize)
 			{
 
 				Vector3[,] STMForklift = new Vector3[LODedSVMSize.X, LODedSVMSize.Y];
@@ -215,13 +214,13 @@ namespace BezierSurfaces
 				{
 					for (byte v = 0; v < LODedSVMSize.Y; v++)
 					{
-						STMForklift[u, v] = ComputeVertexVector(u, v, 0, NB, MB, CN, LODedSVMSize);
+						STMForklift[u, v] = ComputeVertexVector(u, v, NB, MB, NPB, MPB, CN, LODedSVMSize);
 					}
 				}
 				return STMForklift;
 			}
 			
-			private static Vector3[,] GetSurfaceNormals(Matrix NB, Matrix MB, Matrix NBD, Matrix MBD, Vector3[,] CN, ByteVector2 LODedSVMSize)
+			private static Vector3[,] GetSurfaceNormals(Matrix NB, Matrix MB, Matrix NBD, Matrix MBD, Matrix NPB, Matrix MPB, Matrix NPBD, Matrix MPBD, Vector3[,] CN, ByteVector2 LODedSVMSize)
 			{
 
 				Vector3[,] SNMForklift = new Vector3[LODedSVMSize.X, LODedSVMSize.Y];				
@@ -231,7 +230,7 @@ namespace BezierSurfaces
 				{
 					for (byte v = 0; v < LODedSVMSize.Y; v++)
 					{
-						SNMForklift[u, v] = ComputeVertexNormal(u, v, NB, MB, NBD, MBD, CN, LODedSVMSize);
+						SNMForklift[u, v] = ComputeVertexNormal(u, v, NB, MB, NBD, MBD, NPB, MPB, NPBD, MPBD, CN, LODedSVMSize);
 					}
 				}
 
@@ -239,10 +238,10 @@ namespace BezierSurfaces
 				return SNMForklift;
 			}
 
-			private static Vector3 ComputeVertexNormal(byte u, byte v, Matrix NB, Matrix MB, Matrix NBD, Matrix MBD, Vector3[,] CN, ByteVector2 LODedSVMSize)
+			private static Vector3 ComputeVertexNormal(byte u, byte v, Matrix NB, Matrix MB, Matrix NBD, Matrix MBD, Matrix NPB, Matrix MPB, Matrix NPBD, Matrix MPBD, Vector3[,] CN, ByteVector2 LODedSVMSize)
 			{
-				Vector3 TangentA = ComputeVertexVector(u, v, 1, NBD, MB, CN, LODedSVMSize);
-				Vector3 TangentB = ComputeVertexVector(u, v, 2, NB, MBD, CN, LODedSVMSize);
+				Vector3 TangentA = ComputeVertexVector(u, v, NBD, MB, NPBD, MPB, CN, LODedSVMSize);
+				Vector3 TangentB = ComputeVertexVector(u, v, NB, MBD, NPB, MPBD, CN, LODedSVMSize);
 
 				if (CN[0, 0].X < 0)
 				{
@@ -261,22 +260,34 @@ namespace BezierSurfaces
 				return Normal;
 			}
 
-			private static Vector3 ComputeVertexVector(byte u, byte v, int NormVer, Matrix tNB, Matrix tMB, Vector3[,] CN, ByteVector2 LODedSVMSize) // Calculates the transform or tangent vector of a given point on the bezier surface
-			{
+			private static Vector3 ComputeVertexVector(byte u, byte v, Matrix NB, Matrix MB, Matrix NPB, Matrix MPB, Vector3[,] CN, ByteVector2 LODedSVMSize)
+			{ // Calculates the transform or tangent vector of a given point on the bezier surface
 				// This code is going to be hard to read no matter what.
 				// I've shorted down many of the names so that its compact, which makes it more readable in my opinion.
-				Matrix powerBasisU = BezierSurfaceBuilder.PowerBasis(CN.GetLength(0));
-				Matrix powerBasisV = BezierSurfaceBuilder.PowerBasis(CN.GetLength(1));
+				
+				// u and v are the vertex on the bezier surface we are calculating.
+
+				// NB and MB are Bernstein Polynomial matricies which lack the exponent, these are calculated in a seperate function and stored since they will almost never change.
+
+				// NPB and MPB are the exponent part for tNB and tMB, these are also pre-calculated and stored.
+
+				// This is the math for a point on a Bezier Surface via Matrix math, its been so long since I coded this particular part, so I can't remember enough to explain why it works.
+
+
+
+				// These two lines of code are used to make the surfaces less precise at distances, that feature is currently defunct.
 
 				float uF = (float)u / (float)(LODedSVMSize.X - 1);
 				float vF = (float)v / (float)(LODedSVMSize.Y - 1);
 
-				if (NormVer == 1) { powerBasisU = PowerDiv(powerBasisU); }
-				if (NormVer == 2) { powerBasisV = PowerDiv(powerBasisV); }
 
-				Matrix pU = PowsOfI(uF, powerBasisU).Transpose();
-				Matrix pV = PowsOfI(vF, powerBasisV);
-				
+				// These two lines of code raise u and v to the powers in the NPB and MPB matricies.
+
+				Matrix pU = PowsOfI(uF, NPB).Transpose();
+				Matrix pV = PowsOfI(vF, MPB);
+
+				// Construct three different matricies so we can calculate the x, y, and z coordinates seperate.
+
 				Matrix cNX = new Matrix(CN.GetLength(0), CN.GetLength(1));
 				Matrix cNY = new Matrix(CN.GetLength(0), CN.GetLength(1));
 				Matrix cNZ = new Matrix(CN.GetLength(0), CN.GetLength(1));
@@ -290,16 +301,18 @@ namespace BezierSurfaces
 					}
 				}
 
-				Vector3 transform = new Vector3(0, 0, 0);
-				
-				Matrix pUProdTMB = pU.Product(tMB);
-				Matrix tNBProdPV = tNB.Product(pV);
+				// Do the main math:
 
-				transform.X = pUProdTMB.Product(cNX).Product(tNBProdPV)[0,0];
-				transform.Y = pUProdTMB.Product(cNY).Product(tNBProdPV)[0,0];
-				transform.Z = pUProdTMB.Product(cNZ).Product(tNBProdPV)[0,0];
+				Vector3 vector = new Vector3(0, 0, 0); 
 				
-				return transform;
+				Matrix pUProdTMB = pU.Product(MB);
+				Matrix tNBProdPV = NB.Product(pV);
+
+				vector.X = pUProdTMB.Product(cNX).Product(tNBProdPV)[0,0];
+				vector.Y = pUProdTMB.Product(cNY).Product(tNBProdPV)[0,0];
+				vector.Z = pUProdTMB.Product(cNZ).Product(tNBProdPV)[0,0];
+				
+				return vector;
 			}
 			#endregion
 
@@ -347,15 +360,6 @@ namespace BezierSurfaces
 						PowedI[j, 0] = (float)Math.Pow((double)i, (double)Pows[j, 0]);
 					}
 					return PowedI;
-				}
-
-				static Matrix PowerDiv(Matrix Pows)
-				{
-					for (int i = 1; i < Pows.GetLength(0); i++)
-					{
-						Pows[i, 0] = Pows[i - 1, 0];
-					}
-					return Pows;
 				}
 			#endregion
 		}
