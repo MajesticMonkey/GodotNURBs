@@ -18,8 +18,6 @@ namespace BezierSurfaces
 		public partial class BezierSurface : MeshInstance3D
 		{
 			public Vector2 CNLoc = new Vector2(0, 0);
-			
-			public Byte LOD = 1;
 
 			readonly BezierSurfaceBuilder parent;
 
@@ -29,6 +27,9 @@ namespace BezierSurfaces
 			#region Lambda Expressions
 				List<List<ControlPoint>> ControlNetwork => parent.ControlNetwork;
 				//ShaderMaterial NormalShower => parent.NormalShower;
+				Camera3D LODCamera => parent.LODCamera;
+				Godot.Collections.Array<Vector2> LODDistances => parent.LODDistances;
+				Material SurfaceMaterial => parent.SurfaceMaterial;
 				ByteVector2 CNSize => parent.CNSize;
 				ByteVector2 SVMSize => parent.SVMSize;
 				ByteVector2 SSize => parent.SSize;
@@ -101,7 +102,7 @@ namespace BezierSurfaces
 					}
 				}
 			}
-				
+			
 
 			public async void ReloadSurface()
 			{
@@ -180,13 +181,12 @@ namespace BezierSurfaces
 			#region Create Array Mesh
 			private async Task<ArrayMesh> CreateArrayMesh()
 			{
-				var LODedSVMSize = GetLODedSVMSize();
-
 				var CN = GetControlNodes();
 
-				Vector3[,] STM = await Task.Run(() => GetSurfaceTransforms(NB, MB, NPB, MPB, CN, LODedSVMSize));
-				Vector3[,] SNM = await Task.Run(() => GetSurfaceNormals(NB, MB, NBD, MBD, NPB, MPB, NPBD, MPBD, CN, LODedSVMSize));
-
+				Vector2[,] UVs = await Task.Run(() => GetSurfaceUVs(SVMSize));
+				Vector3[,] STM = await Task.Run(() => GetSurfaceTransforms(NB, MB, NPB, MPB, CN, SVMSize));
+				Vector3[,] SNM = await Task.Run(() => GetSurfaceNormals(NB, MB, NBD, MBD, NPB, MPB, NPBD, MPBD, CN, SVMSize));
+				
 				ArrayMesh ArrMesh = new ArrayMesh();
 
 				var SurfaceArray = new Godot.Collections.Array();
@@ -195,42 +195,57 @@ namespace BezierSurfaces
 
 				SurfaceArray[(int)Mesh.ArrayType.Vertex] = WindTriangles(STM);
 				SurfaceArray[(int)Mesh.ArrayType.Normal] = WindTriangles(SNM);
+				SurfaceArray[(int)Mesh.ArrayType.TexUV] = WindTriangles(UVs);
 
-				
 				ArrMesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, SurfaceArray);
 
-				//ArrMesh.SurfaceSetMaterial(0, NormalShower);
-
+				if (SurfaceMaterial != null)
+				{
+					ArrMesh.SurfaceSetMaterial(0, SurfaceMaterial);
+				}
 
 				return ArrMesh;
 			}
 
 			#region Surface Calculations
-			private static Vector3[,] GetSurfaceTransforms(Matrix NB, Matrix MB, Matrix NPB, Matrix MPB, Vector3[,] CN, ByteVector2 LODedSVMSize)
+			private static Vector2[,] GetSurfaceUVs(ByteVector2 SVMSize)
+			{
+				Vector2[,] UVs = new Vector2[SVMSize.X, SVMSize.Y];
+				for (int u = 0; u < SVMSize.X; u++)
+				{
+					for (int v = 0; v < SVMSize.Y; v++)
+					{
+						UVs[u, v] = new Vector2(u / (SVMSize.X - 1f), v / (SVMSize.Y - 1f));
+					}
+				}
+				return UVs;
+			}
+
+			private static Vector3[,] GetSurfaceTransforms(Matrix NB, Matrix MB, Matrix NPB, Matrix MPB, Vector3[,] CN, ByteVector2 SVMSize)
 			{
 
-				Vector3[,] STMForklift = new Vector3[LODedSVMSize.X, LODedSVMSize.Y];
-				for (byte u = 0; u < LODedSVMSize.X; u++)
+				Vector3[,] STMForklift = new Vector3[SVMSize.X, SVMSize.Y];
+				for (byte u = 0; u < SVMSize.X; u++)
 				{
-					for (byte v = 0; v < LODedSVMSize.Y; v++)
+					for (byte v = 0; v < SVMSize.Y; v++)
 					{
-						STMForklift[u, v] = ComputeVertexVector(u, v, NB, MB, NPB, MPB, CN, LODedSVMSize);
+						STMForklift[u, v] = ComputeVertexVector(u, v, NB, MB, NPB, MPB, CN, SVMSize);
 					}
 				}
 				return STMForklift;
 			}
 			
-			private static Vector3[,] GetSurfaceNormals(Matrix NB, Matrix MB, Matrix NBD, Matrix MBD, Matrix NPB, Matrix MPB, Matrix NPBD, Matrix MPBD, Vector3[,] CN, ByteVector2 LODedSVMSize)
+			private static Vector3[,] GetSurfaceNormals(Matrix NB, Matrix MB, Matrix NBD, Matrix MBD, Matrix NPB, Matrix MPB, Matrix NPBD, Matrix MPBD, Vector3[,] CN, ByteVector2 SVMSize)
 			{
 
-				Vector3[,] SNMForklift = new Vector3[LODedSVMSize.X, LODedSVMSize.Y];				
+				Vector3[,] SNMForklift = new Vector3[SVMSize.X, SVMSize.Y];				
 				
 				
-				for (byte u = 0; u < LODedSVMSize.X; u++)
+				for (byte u = 0; u < SVMSize.X; u++)
 				{
-					for (byte v = 0; v < LODedSVMSize.Y; v++)
+					for (byte v = 0; v < SVMSize.Y; v++)
 					{
-						SNMForklift[u, v] = ComputeVertexNormal(u, v, NB, MB, NBD, MBD, NPB, MPB, NPBD, MPBD, CN, LODedSVMSize);
+						SNMForklift[u, v] = ComputeVertexNormal(u, v, NB, MB, NBD, MBD, NPB, MPB, NPBD, MPBD, CN, SVMSize);
 					}
 				}
 
@@ -238,10 +253,10 @@ namespace BezierSurfaces
 				return SNMForklift;
 			}
 
-			private static Vector3 ComputeVertexNormal(byte u, byte v, Matrix NB, Matrix MB, Matrix NBD, Matrix MBD, Matrix NPB, Matrix MPB, Matrix NPBD, Matrix MPBD, Vector3[,] CN, ByteVector2 LODedSVMSize)
+			private static Vector3 ComputeVertexNormal(byte u, byte v, Matrix NB, Matrix MB, Matrix NBD, Matrix MBD, Matrix NPB, Matrix MPB, Matrix NPBD, Matrix MPBD, Vector3[,] CN, ByteVector2 SVMSize)
 			{
-				Vector3 TangentA = ComputeVertexVector(u, v, NBD, MB, NPBD, MPB, CN, LODedSVMSize);
-				Vector3 TangentB = ComputeVertexVector(u, v, NB, MBD, NPB, MPBD, CN, LODedSVMSize);
+				Vector3 TangentA = ComputeVertexVector(u, v, NBD, MB, NPBD, MPB, CN, SVMSize);
+				Vector3 TangentB = ComputeVertexVector(u, v, NB, MBD, NPB, MPBD, CN, SVMSize);
 
 				if (CN[0, 0].X < 0)
 				{
@@ -260,9 +275,9 @@ namespace BezierSurfaces
 				return Normal;
 			}
 
-			private static Vector3 ComputeVertexVector(byte u, byte v, Matrix NB, Matrix MB, Matrix NPB, Matrix MPB, Vector3[,] CN, ByteVector2 LODedSVMSize)
-			{ // Calculates the transform or tangent vector of a given point on the bezier surface
-				// This code is going to be hard to read no matter what.
+			private static Vector3 ComputeVertexVector(byte u, byte v, Matrix NB, Matrix MB, Matrix NPB, Matrix MPB, Vector3[,] CN, ByteVector2 SVMSize)
+			{
+				// Calculates the transform or tangent vector of a given point on the bezier surface
 				// I've shorted down many of the names so that its compact, which makes it more readable in my opinion.
 				
 				// u and v are the vertex on the bezier surface we are calculating.
@@ -271,14 +286,12 @@ namespace BezierSurfaces
 
 				// NPB and MPB are the exponent part for tNB and tMB, these are also pre-calculated and stored.
 
-				// This is the math for a point on a Bezier Surface via Matrix math, its been so long since I coded this particular part, so I can't remember enough to explain why it works.
+				// These two lines of code are used to convert this point in u space v into a point in 0 to 1 space, since beziers are built on lerping, which happens between 0 and 1,
+				// because the number is what percent of the line you have traveled on.
+				// The LODedSVMSize makes the surfaces less precise at distances, that feature is currently defunct.
 
-
-
-				// These two lines of code are used to make the surfaces less precise at distances, that feature is currently defunct.
-
-				float uF = (float)u / (float)(LODedSVMSize.X - 1);
-				float vF = (float)v / (float)(LODedSVMSize.Y - 1);
+				float uF = (float)u / (float)(SVMSize.X - 1);
+				float vF = (float)v / (float)(SVMSize.Y - 1);
 
 
 				// These two lines of code raise u and v to the powers in the NPB and MPB matricies.
@@ -328,26 +341,54 @@ namespace BezierSurfaces
 			#endregion
 
 			#region Triangles
-				private Vector3[] WindTriangles(Vector3[,] STM)
+				private T[] WindTriangles<T>(T[,] SM)
 				{
+					T[,] CloneSM = (T[,])SM.Clone();
 					int PackRATLen = ((SVMSize.X - 1) * (SVMSize.Y - 1)) * 6;
 					int n = 0;
 
-					Vector3[] PackRAT = new Vector3[PackRATLen]; // Packed Reordered Array of Triangles
+					T[] PackRAT = new T[PackRATLen]; // Packed Reordered Array of Triangles
 					for (int j = 0; j < SVMSize.Y - 1; j++)
 					{
 						for (int i = 0; i < SVMSize.X - 1; i++)
 						{
-							PackRAT[n++] = STM[i, j];
-							PackRAT[n++] = STM[i+1, j];
-							PackRAT[n++] = STM[i+1, j+1];
+							PackRAT[n++] = CloneSM[i, j];
+							PackRAT[n++] = CloneSM[i+1, j];
+							PackRAT[n++] = CloneSM[i+1, j+1];
 							
-							PackRAT[n++] = STM[i+1, j+1];
-							PackRAT[n++] = STM[i, j+1];
-							PackRAT[n++] = STM[i, j];
+							PackRAT[n++] = CloneSM[i+1, j+1];
+							PackRAT[n++] = CloneSM[i, j+1];
+							PackRAT[n++] = CloneSM[i, j];
 						}
 					}
 					return PackRAT;
+				}
+
+				private static int[] GenerateTriangleLoDIndexMap(Vector3[,] TriangleArray, byte LODLevel, ByteVector2 SVMSize)
+				{
+					// We want all the edge vertexes so that the meshes don't have holes in between them, but other than that we reduce, only taking every nth vertex, where n = LODlevel.
+					int[] Lengths = GetTriangleLoDMapLengths(SVMSize, LODLevel);
+					int[] TriangleLoDIndexMaps = new int[Lengths[0] + Lengths[1]];
+
+					int j = 1;
+					int[] InsideVerticies = new int[Lengths[1]];
+					for (int i = 1; i < Lengths[1]; i += LODLevel)
+					{
+						if (i >= TriangleArray.GetLength(0) - 1)
+						{
+							
+						}
+					}
+
+					return TriangleLoDIndexMaps;
+				}
+
+				private static int[] GetTriangleLoDMapLengths(ByteVector2 SVMSize, byte LODLevel)
+				{
+					int EdgeLength = (SVMSize.X * 2) + ((SVMSize.Y - 2) * 2);
+					ByteVector2 NoEdgeSVMSize = new ByteVector2((byte)(SVMSize.X - 2), (byte)(SVMSize.Y - 2));
+					int InsideLength = (int )(Math.Ceiling((float)NoEdgeSVMSize.X / (float)LODLevel) * (Math.Ceiling((float)NoEdgeSVMSize.Y / (float)LODLevel)));
+					return [EdgeLength, InsideLength];
 				}
 			#endregion
 
