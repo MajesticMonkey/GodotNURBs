@@ -66,7 +66,10 @@ namespace BezierSurfaces
 				{
 					AddTreeOwnership();
 				}
-				ReloadSurface();
+				if (Engine.IsEditorHint())
+				{
+					ReloadSurface();
+				}
 			}
 			
 			public override void _Notification(int what)
