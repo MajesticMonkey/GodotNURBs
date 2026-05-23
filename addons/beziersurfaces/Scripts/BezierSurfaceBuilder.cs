@@ -102,7 +102,6 @@ namespace BezierSurfaces
 
 		public override void _Ready()
 		{
-			
 			Print("Ready!");
 			if (!Loaded)
 			{
@@ -110,11 +109,24 @@ namespace BezierSurfaces
 				Loaded = true;
 				LoadSurfaces();
 			}
+
+			if (!Engine.IsEditorHint())
+			{
+				for (int i = 0; i < ControlNetwork.Count; i++)
+				{
+					for (int j = 0; j < ControlNetwork[i].Count; j++)
+					{
+						ControlNetworkPositions[i][j] = ControlNetwork[i][j].Position;
+						ControlNetwork[i][j].QueueFree();
+					}
+				}
+			}
+			UpdateAllSurfaces();
 		}
 
 		public override void _Process(double delta)
 		{
-			if (AutoUpdate)
+			if (AutoUpdate && Engine.IsEditorHint())
 			{
 				UpdateSurfaces();
 			}
@@ -127,7 +139,7 @@ namespace BezierSurfaces
 			ControlNetworkPositions = new List<List<Vector3>>();
 
 			ReattainChildren();
-
+			
 			for (int i = 0; i < ControlNetwork.Count; i++)
 			{
 				for (int j = 0; j < ControlNetwork[i].Count; j++)
@@ -243,7 +255,6 @@ namespace BezierSurfaces
 		public async void UpdateSurfaces()
 		{
 			UpdateMaintenance();
-			
 			List<ControlPoint> outdatedControlNodes = new List<ControlPoint>();
 			for (int i = 0; i < ControlNetwork.Count; i++)
 			{

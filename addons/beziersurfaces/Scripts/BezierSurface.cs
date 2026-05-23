@@ -25,7 +25,7 @@ namespace BezierSurfaces
 			private bool QueuedForReload = false;
 
 			#region Lambda Expressions
-				List<List<ControlPoint>> ControlNetwork => parent.ControlNetwork;
+				List<List<Vector3>> ControlNetworkPositions => parent.ControlNetworkPositions;
 				//ShaderMaterial NormalShower => parent.NormalShower;
 				Camera3D LODCamera => parent.LODCamera;
 				Godot.Collections.Array<Vector2> LODDistances => parent.LODDistances;
@@ -154,11 +154,11 @@ namespace BezierSurfaces
 			private Vector3[,] GetControlNodes()
 			{
 				Vector3[,] CN = new Vector3[CNSize.X, CNSize.Y];
-				for (int i = 0; i + CNLoc.X < ControlNetwork.Count && i < CNSize.X; i++)
+				for (int i = 0; i + CNLoc.X < ControlNetworkPositions.Count && i < CNSize.X; i++)
 				{
-					for (int j = 0; j + CNLoc.Y < ControlNetwork[i + (int)CNLoc.X].Count && j < CNSize.Y; j++)
+					for (int j = 0; j + CNLoc.Y < ControlNetworkPositions[i + (int)CNLoc.X].Count && j < CNSize.Y; j++)
 					{
-						CN[i, j] = ControlNetwork[i + (int)CNLoc.X][j + (int)CNLoc.Y].Position;
+						CN[i, j] = ControlNetworkPositions[i + (int)CNLoc.X][j + (int)CNLoc.Y];
 					}
 				}
 				return CN;
