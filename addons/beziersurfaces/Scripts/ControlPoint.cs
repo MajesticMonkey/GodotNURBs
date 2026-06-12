@@ -12,6 +12,8 @@ namespace BezierSurfaces
 
 		public bool HasSurface = false;
 
+		[Export]
+		public float Weight = 1.0f;
 		
 		public override void _EnterTree()
 		{

@@ -227,15 +227,12 @@ namespace BezierSurfaces
 				NB = BernsteinPolynomial(CNSize.X);
 				NBD = DifferentiateBernstein(CNSize.X);
 				NPB = PowerBasis(CNSize.X);
-				NPBD = PowerDiv(NPB);
-				NPB.Print();
 			}
 			if (RecalcMB)
 			{
 				MB = BernsteinPolynomial(CNSize.Y).Transpose();
 				MBD = DifferentiateBernstein(CNSize.Y).Transpose();
 				MPB = PowerBasis(CNSize.Y);
-				MPBD = PowerDiv(MPB);
 			}
 
 			ControlPointSpacing = new Vector2((float)SSize.X/((float)CNSize.X - (float)1), (float)SSize.Y/((float)CNSize.Y - (float)1));
@@ -414,16 +411,6 @@ namespace BezierSurfaces
 					}
 				}
 				return DB;
-			}
-			
-			static Matrix PowerDiv(Matrix Pows)
-			{
-				Matrix DPows = new Matrix(Pows.GetLength(0), Pows.GetLength(1));
-				for (int i = 1; i < Pows.GetLength(0); i++)
-				{
-					DPows[i, 0] = Pows[i - 1, 0];
-				}
-				return DPows;
 			}
 
 			static private int Factorial(int n)
