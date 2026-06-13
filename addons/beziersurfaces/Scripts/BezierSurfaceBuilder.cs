@@ -29,6 +29,9 @@ namespace BezierSurfaces
 		
 		[Export]
 		public bool AutoUpdate = true; // Whether or not to continuously update the surfaces.
+		[Export]
+		public bool EdgeDebugMode = false;
+
 
 		[ExportGroup("Control Nodes")]
 		
@@ -77,13 +80,12 @@ namespace BezierSurfaces
 		public Matrix MBD;
 		public Matrix NPB;
 		public Matrix MPB;
-		public Matrix NPBD;
-		public Matrix MPBD;
 
 		public Vector2 ControlPointSpacing;
 
 		public readonly String BezierPrefix = "BezierSurface_";
 		public readonly String NodePrefix = "ControlPoint_";
+		public readonly String NodeHasSurfaceMetaName = "HasSurface";
 
 		private Godot.ProgressBar ProgressBar = new Godot.ProgressBar();
 
@@ -144,7 +146,7 @@ namespace BezierSurfaces
 			{
 				for (int j = 0; j < ControlNetwork[i].Count; j++)
 				{
-					if (ControlNetwork[i][j].RotationDegrees.X == 90)
+					if (((string)ControlNetwork[i][j].Name)[^1] == '_')
 					{
 						CreateSurface(new Vector2(i, j));
 					}
@@ -319,6 +321,7 @@ namespace BezierSurfaces
 			ControlNetwork[i].Add(ConstControlPoint(new Vector3(i, 0, j)));
 			ControlNetwork[i][j].Position = new Vector3((float)i*ControlPointSpacing.X, 0, (float)j*ControlPointSpacing.Y);
 			ControlNetworkPositions[i].Add(ControlNetwork[i][j].Position);
+			ControlNetwork[i][j].SetMeta(NodeHasSurfaceMetaName, false);
 		}
 
 		public void RemoveSurfaceExternally(Vector2 Loc)

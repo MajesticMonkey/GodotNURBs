@@ -12,6 +12,8 @@ namespace BezierSurfaces
 
 		public bool HasSurface = false;
 
+		public string HasSurfaceMetaName = "HasSurface";
+
 		[Export]
 		public float Weight = 1.0f;
 		
@@ -22,40 +24,32 @@ namespace BezierSurfaces
 
 		public void CreateSurface()
 		{
-			if (!HasSurface)
-			{
-				HasSurface = true;
-				NotifyPropertyListChanged();
-				var forklift = GetParent();
-				if (forklift is BezierSurfaceBuilder builder)
-				{
-					builder.CreateSurfaceExternally(Loc);
-				}
-				RotationDegrees = new Vector3(90, 0, 0);
-			}
-			else
-			{
-				NotifyPropertyListChanged();
-			}
+			ToggleSurface(true);
 		}
 
 		public void RemoveSurface()
 		{
-			if (HasSurface)
+			ToggleSurface(false);
+		}
+
+		public void ToggleSurface(bool Add)
+		{
+			if (HasSurface ^ Add)
 			{
-				HasSurface = false;
-				NotifyPropertyListChanged();
 				var forklift = GetParent();
 				if (forklift is BezierSurfaceBuilder builder)
 				{
-					builder.RemoveSurfaceExternally(Loc);
+					HasSurface = !HasSurface;
+					if (HasSurface) { builder.CreateSurfaceExternally(Loc); } else { builder.RemoveSurfaceExternally(Loc); }
+					char LastChar = ((string)Name)[^1];
+					if (HasSurface ^ (LastChar == '_')) { Name = LastChar == '_' ? ((string)Name)[..^1] : ((string)Name) + '_'; }
 				}
-				RotationDegrees = new Vector3(0, 0, 0);
+				else
+				{
+					throw new InvalidOperationException("This control point has somehow been unparented from a BezierSurfaceBuilder. Please reload your project and hope for the best.");
+				}
 			}
-			else
-			{
-				NotifyPropertyListChanged();
-			}
+			NotifyPropertyListChanged();
 		}
 
 		public Vector2 LocFromName()
