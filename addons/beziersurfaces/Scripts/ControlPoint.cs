@@ -19,7 +19,14 @@ namespace BezierSurfaces
 		
 		public override void _EnterTree()
 		{
-			Loc = LocFromName();
+			PropertyListChanged += _OnPropertyChanged;
+		}
+
+		public void _OnPropertyChanged()
+		{
+			var builder = GetParent();
+
+			SetNameWithUVW(new Vector3(Loc.X, Loc.Y, Weight));
 		}
 
 		public void CreateSurface()
@@ -36,34 +43,53 @@ namespace BezierSurfaces
 		{
 			if (HasSurface ^ Add)
 			{
-				var forklift = GetParent();
-				if (forklift is BezierSurfaceBuilder builder)
-				{
-					HasSurface = !HasSurface;
-					if (HasSurface) { builder.CreateSurfaceExternally(Loc); } else { builder.RemoveSurfaceExternally(Loc); }
-					char LastChar = ((string)Name)[^1];
-					if (HasSurface ^ (LastChar == '_')) { Name = LastChar == '_' ? ((string)Name)[..^1] : ((string)Name) + '_'; }
-				}
-				else
-				{
-					throw new InvalidOperationException("This control point has somehow been unparented from a BezierSurfaceBuilder. Please reload your project and hope for the best.");
-				}
+				BezierSurfaceBuilder builder = GetParent();
+
+				HasSurface = !HasSurface;
+
+				if (HasSurface) { builder.CreateSurfaceExternally(Loc); } else { builder.RemoveSurfaceExternally(Loc); }
+
+				char LastChar = ((string)Name)[^1];
+
+				if (HasSurface ^ (LastChar == '_')) { Name = LastChar == '_' ? ((string)Name)[..^1] : ((string)Name) + '_'; }
 			}
 			NotifyPropertyListChanged();
 		}
 
-		public Vector2 LocFromName()
+		public Vector4 GetPosVec()
 		{
-			Vector2 Location = new Vector2(0, 0);
-			string MyName = this.Name;
-			for (var i = 0; i < MyName.Length; i++)
-			{
+			return new Vector4(Position.X, Position.Y, Position.Z, Weight);
+		}
 
+		public new BezierSurfaceBuilder GetParent()
+		{
+			var forklift = base.GetParent();
+			if (forklift is BezierSurfaceBuilder builder)
+			{
+				return builder;
+			} else {
+				throw new InvalidOperationException("This control point has somehow been unparented from a BezierSurfaceBuilder. Please reload your project and hope for the best.");
 			}
-			string[] SplitName = MyName.Split("_");
+		}
+
+		public Vector3 LocFromName()
+		{
+			Vector3 Location = new Vector3(0, 0, 0);
+			string NameForklift = this.Name;
+			
+			string[] SplitName = NameForklift.Split("_");
 			Location.X = float.Parse(SplitName[1]);
 			Location.Y = float.Parse(SplitName[2]);
+			Location.Z = float.Parse(SplitName[3]);
 			return Location;
+		}
+
+		public void SetNameWithUVW(Vector3 UVW)
+		{
+			string Prefix = GetParent().NodePrefix;
+			string NameForklift = Prefix + UVW.X.ToString() + "_" + UVW.Y.ToString() + "_" + UVW.Z.ToString();
+			if (HasSurface) { NameForklift += "_"; }
+			Name = NameForklift;
 		}
 	}
 }

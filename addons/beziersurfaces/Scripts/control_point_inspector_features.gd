@@ -20,6 +20,6 @@ func _parse_begin(object: Object) -> void:
 		add_custom_control(surface_button)
 
 func _parse_property(object: Object, type: Variant.Type, name: String, hint_type: PropertyHint, hint_string: String, usage_flags: int, wide: bool) -> bool:
-	if name == "position":
+	if (name == "position" || name == "Weight"):
 		return false
 	return true

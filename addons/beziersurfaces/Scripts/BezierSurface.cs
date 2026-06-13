@@ -17,6 +17,9 @@ namespace BezierSurfaces
 	#region BezierSurfaceClass
 		public partial class BezierSurface : MeshInstance3D
 		{
+			[Export]
+			public float Weight = 0;
+
 			public Vector2 CNLoc = new Vector2(0, 0);
 
 			readonly BezierSurfaceBuilder parent;
@@ -25,7 +28,7 @@ namespace BezierSurfaces
 			private bool QueuedForReload = false;
 
 			#region Lambda Expressions
-				List<List<Vector3>> ControlNetworkPositions => parent.ControlNetworkPositions;
+				List<List<Vector4>> ControlNetworkPositions => parent.ControlNetworkPositions;
 				//ShaderMaterial NormalShower => parent.NormalShower;
 				Camera3D LODCamera => parent.LODCamera;
 				Godot.Collections.Array<Vector2> LODDistances => parent.LODDistances;
@@ -149,9 +152,9 @@ namespace BezierSurfaces
 				}
 			}
 
-			private Vector3[,] GetControlNodes()
+			private Vector4[,] GetControlNodes()
 			{
-				Vector3[,] CN = new Vector3[CNSize.X, CNSize.Y];
+				Vector4[,] CN = new Vector4[CNSize.X, CNSize.Y];
 				for (int i = 0; i + CNLoc.X < ControlNetworkPositions.Count && i < CNSize.X; i++)
 				{
 					for (int j = 0; j + CNLoc.Y < ControlNetworkPositions[i + (int)CNLoc.X].Count && j < CNSize.Y; j++)
@@ -182,8 +185,10 @@ namespace BezierSurfaces
 				var CN = GetControlNodes();
 
 				Vector2[,] UVs = await Task.Run(() => GetSurfaceUVs(SVMSize));
-				Vector3[,] STM = await Task.Run(() => GetSurfaceTransforms(NB, MB, NPB, MPB, CN, SVMSize));
-				Vector3[,] SNM = await Task.Run(() => GetSurfaceNormals(NB, MB, NBD, MBD, NPB, MPB, CN, SVMSize));
+				Vector3[][,] STMandSNM = await Task.Run(() => GetSurfaceTransforms(NB, MB, NBD, MBD, NPB, MPB, CN, SVMSize));
+
+				Vector3[,] STM = STMandSNM[0];
+				Vector3[,] SNM = STMandSNM[1];
 
 				ArrayMesh ArrMesh = new ArrayMesh();
 
@@ -219,21 +224,31 @@ namespace BezierSurfaces
 				return UVs;
 			}
 
-			private static Vector3[,] GetSurfaceTransforms(Matrix NB, Matrix MB, Matrix NPB, Matrix MPB, Vector3[,] CN, ByteVector2 SVMSize)
+			private static Vector3[][,] GetSurfaceTransforms(Matrix NB, Matrix MB, Matrix NBD, Matrix MBD, Matrix NPB, Matrix MPB, Vector4[,] CN, ByteVector2 SVMSize)
 			{
 
 				Vector3[,] STMForklift = new Vector3[SVMSize.X, SVMSize.Y];
+				Vector3[,] SNMForklift = new Vector3[SVMSize.X, SVMSize.Y];
 				for (byte u = 0; u < SVMSize.X; u++)
 				{
 					for (byte v = 0; v < SVMSize.Y; v++)
 					{
-						STMForklift[u, v] = ComputeVertexVector(u, v, NB, MB, NPB, MPB, CN, SVMSize);
+						Vector4 ForkliftT = ComputeVertexVector(u, v, NB, MB, NPB, MPB, CN, SVMSize);
+						Vector4 ForkliftA = ComputeVertexVector(u, v, NBD, MB, NPB, MPB, CN, SVMSize);
+						Vector4 ForkliftB = ComputeVertexVector(u, v, NB, MBD, NPB, MPB, CN, SVMSize);
+						
+						STMForklift[u, v] = new Vector3(ForkliftT.X / ForkliftT.W, ForkliftT.Y / ForkliftT.W, ForkliftT.Z / ForkliftT.W);
+
+						Vector3 TangentA = new Vector3(ForkliftA.X - (ForkliftA.W * ForkliftT.X), ForkliftA.Y - (ForkliftA.W * ForkliftT.Y), ForkliftA.Z - (ForkliftA.W * ForkliftT.Z));
+						Vector3 TangentB = new Vector3(ForkliftB.X - (ForkliftB.W * ForkliftT.X), ForkliftA.Y - (ForkliftB.W * ForkliftT.Y), ForkliftA.Z - (ForkliftB.W * ForkliftT.Z));
+
+						SNMForklift[u, v] = TangentA.Cross(TangentB).Normalized();
 					}
 				}
-				return STMForklift;
+				return [STMForklift, SNMForklift];
 			}
-			
-			private static Vector3[,] GetSurfaceNormals(Matrix NB, Matrix MB, Matrix NBD, Matrix MBD, Matrix NPB, Matrix MPB, Vector3[,] CN, ByteVector2 SVMSize)
+			/*
+			private static Vector3[,] GetSurfaceNormals(Matrix NB, Matrix MB, Matrix NBD, Matrix MBD, Matrix NPB, Matrix MPB, Vector4[,] CN, ByteVector2 SVMSize)
 			{
 
 				Vector3[,] SNMForklift = new Vector3[SVMSize.X, SVMSize.Y];				
@@ -250,17 +265,19 @@ namespace BezierSurfaces
 				return SNMForklift;
 			}
 
-			private static Vector3 ComputeVertexNormal(byte u, byte v, Matrix NB, Matrix MB, Matrix NBD, Matrix MBD, Matrix NPB, Matrix MPB, Vector3[,] CN, ByteVector2 SVMSize)
+			private static Vector3 ComputeVertexNormal(byte u, byte v, Matrix NB, Matrix MB, Matrix NBD, Matrix MBD, Matrix NPB, Matrix MPB, Vector4[,] CN, ByteVector2 SVMSize)
 			{
-				Vector3 TangentA = ComputeVertexVector(u, v, NBD, MB, NPB, MPB, CN, SVMSize).Normalized();
-				Vector3 TangentB = ComputeVertexVector(u, v, NB, MBD, NPB, MPB, CN, SVMSize).Normalized();
+				Vector4 UndividedA = ComputeVertexVector(u, v, NBD, MB, NPB, MPB, CN, SVMSize);
+				Vector3 TangentA = new Vector3(UndividedA.X, UndividedA.Y, UndividedA.Z)
+				Vector4 UndividedB = ComputeVertexVector(u, v, NB, MBD, NPB, MPB, CN, SVMSize);
+				Vector3 TangentB = new Vector3(UndividedB.X, UndividedB.Y, UndividedB.Z)
 
 				Vector3 Normal = TangentA.Cross(TangentB).Normalized();
 				
 				return Normal;
 			}
-
-			private static Vector3 ComputeVertexVector(byte u, byte v, Matrix NB, Matrix MB, Matrix NPB, Matrix MPB, Vector3[,] CN, ByteVector2 SVMSize)
+			*/
+			private static Vector4 ComputeVertexVector(byte u, byte v, Matrix NB, Matrix MB, Matrix NPB, Matrix MPB, Vector4[,] CN, ByteVector2 SVMSize)
 			{
 				// Calculates the transform or tangent vector of a given point on the bezier surface
 				// I've shorted down many of the names so that its compact, which makes it more readable in my opinion.
@@ -286,22 +303,26 @@ namespace BezierSurfaces
 
 				// Construct three different matricies so we can calculate the x, y, and z coordinates seperate.
 
+
+
 				Matrix cNX = new Matrix(CN.GetLength(0), CN.GetLength(1));
 				Matrix cNY = new Matrix(CN.GetLength(0), CN.GetLength(1));
 				Matrix cNZ = new Matrix(CN.GetLength(0), CN.GetLength(1));
+				Matrix cNW = new Matrix(CN.GetLength(0), CN.GetLength(1));
 				for (int i = 0; i < CN.GetLength(0); i++)
 				{
 					for (int j = 0; j < CN.GetLength(1); j++)
 					{
-						cNX[i, j] = CN[i, j].X;
-						cNY[i, j] = CN[i, j].Y;
-						cNZ[i, j] = CN[i, j].Z;
+						cNX[i, j] = CN[i, j].X * CN[i, j].W;
+						cNY[i, j] = CN[i, j].Y * CN[i, j].W;
+						cNZ[i, j] = CN[i, j].Z * CN[i, j].W;
+						cNW[i, j] = CN[i, j].W;
 					}
 				}
 
 				// Do the main math:
 
-				Vector3 vector = new Vector3(0, 0, 0);
+				Vector4 vector = new Vector4(0, 0, 0, 0);
 				
 				Matrix pUProdTMB = pU.Product(MB);
 				Matrix tNBProdPV = NB.Product(pV);
@@ -309,7 +330,7 @@ namespace BezierSurfaces
 				vector.X = pUProdTMB.Product(cNX).Product(tNBProdPV)[0,0];
 				vector.Y = pUProdTMB.Product(cNY).Product(tNBProdPV)[0,0];
 				vector.Z = pUProdTMB.Product(cNZ).Product(tNBProdPV)[0,0];
-
+				vector.W = pUProdTMB.Product(cNW).Product(tNBProdPV)[0,0];
 
 				return vector;
 			}
@@ -350,7 +371,7 @@ namespace BezierSurfaces
 					return PackRAT;
 				}
 
-				private static int[] GenerateTriangleLoDIndexMap(Vector3[,] TriangleArray, byte LODLevel, ByteVector2 SVMSize) // Currently Defunct function
+				private static int[] GenerateTriangleLoDIndexMap(Vector3[,] TriangleArray, byte LODLevel, ByteVector2 SVMSize) // Currently Defunct function, it will be finished eventually.
 				{
 					// We want all the edge vertexes so that the meshes don't have holes in between them, but other than that we reduce, only taking every nth vertex, where n = LODlevel.
 					int[] Lengths = GetTriangleLoDMapLengths(SVMSize, LODLevel);

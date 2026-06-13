@@ -25,7 +25,7 @@ namespace BezierSurfaces
 		
 		private List<BezierSurface> SurfaceNetwork = new List<BezierSurface>();
 		public List<List<ControlPoint>> ControlNetwork = new List<List<ControlPoint>>();
-		public List<List<Vector3>> ControlNetworkPositions = new List<List<Vector3>>();
+		public List<List<Vector4>> ControlNetworkPositions = new List<List<Vector4>>();
 		
 		[Export]
 		public bool AutoUpdate = true; // Whether or not to continuously update the surfaces.
@@ -95,12 +95,6 @@ namespace BezierSurfaces
 		{
 			UpdateMaintenance();
 		}
-		
-		public override void _EnterTree()
-		{
-			
-			
-		}
 
 		public override void _Ready()
 		{
@@ -118,7 +112,7 @@ namespace BezierSurfaces
 				{
 					for (int j = 0; j < ControlNetwork[i].Count; j++)
 					{
-						ControlNetworkPositions[i][j] = ControlNetwork[i][j].Position;
+						ControlNetworkPositions[i][j] = ControlNetwork[i][j].GetPosVec();
 						ControlNetwork[i][j].QueueFree();
 					}
 				}
@@ -138,7 +132,7 @@ namespace BezierSurfaces
 		{
 			SurfaceNetwork = new List<BezierSurface>();
 			ControlNetwork = new List<List<ControlPoint>>();
-			ControlNetworkPositions = new List<List<Vector3>>();
+			ControlNetworkPositions = new List<List<Vector4>>();
 
 			ReattainChildren();
 			
@@ -161,10 +155,11 @@ namespace BezierSurfaces
 			if(children.Count == 0)
 			{
 				ControlNetwork.Add(new List<ControlPoint>());
-				ControlNetworkPositions.Add(new List<Vector3>());
+				ControlNetworkPositions.Add(new List<Vector4>());
 				ControlNetwork[0].Add(ConstControlPoint(new Vector3(0, 0, 0)));
 				ControlNetwork[0][0].Position = new Vector3(0, 0, 0);
-				ControlNetworkPositions[0].Add(ControlNetwork[0][0].Position);
+				ControlNetwork[0][0].Weight = 1.0f;
+				ControlNetworkPositions[0].Add(ControlNetwork[0][0].GetPosVec());
 				return;
 			}
 
@@ -179,7 +174,7 @@ namespace BezierSurfaces
 							if ((float)ControlNetwork[(int)Point.Loc.X].Count == Point.Loc.Y)
 							{
 								ControlNetwork[(int)Point.Loc.X].Add(Point);
-								ControlNetworkPositions[(int)Point.Loc.X].Add(Vector3.Zero);
+								ControlNetworkPositions[(int)Point.Loc.X].Add(Vector4.Zero);
 								RemoveChild(Point);
 								AddControlPoint(Point);
 								children.RemoveAt(i);
@@ -188,7 +183,7 @@ namespace BezierSurfaces
 						else if (Point.Loc.X == ControlNetwork.Count)
 						{
 							ControlNetwork.Add(new List<ControlPoint>());
-							ControlNetworkPositions.Add(new List<Vector3>());
+							ControlNetworkPositions.Add(new List<Vector4>());
 						}
 					} else {
 						children[i].QueueFree();
@@ -259,10 +254,10 @@ namespace BezierSurfaces
 			{
 				for (int j = 0; j < ControlNetwork[i].Count; j++)
 				{
-					if (ControlNetwork[i][j].Position != ControlNetworkPositions[i][j])
+					if (ControlNetwork[i][j].GetPosVec() != ControlNetworkPositions[i][j])
 					{
 						outdatedControlNodes.Add(ControlNetwork[i][j]);
-						ControlNetworkPositions[i][j] = ControlNetwork[i][j].Position;
+						ControlNetworkPositions[i][j] = ControlNetwork[i][j].GetPosVec();
 					}
 				}
 			}
@@ -298,7 +293,7 @@ namespace BezierSurfaces
 				if (i == ControlNetwork.Count && i != Loc.X + CNSize.X)
 				{
 					ControlNetwork.Add(new List<ControlPoint>());
-					ControlNetworkPositions.Add(new List<Vector3>());
+					ControlNetworkPositions.Add(new List<Vector4>());
 				}
 				for (int j = 0; j < Loc.Y + CNSize.Y; j++)
 				{
@@ -316,12 +311,12 @@ namespace BezierSurfaces
 			return surface;
 		}
 
-		private void AddPoint(int i, int j)
+		private void AddPoint(int i, int j, float w = 1.0f)
 		{
-			ControlNetwork[i].Add(ConstControlPoint(new Vector3(i, 0, j)));
+			ControlNetwork[i].Add(ConstControlPoint(new Vector3(i, j, w)));
 			ControlNetwork[i][j].Position = new Vector3((float)i*ControlPointSpacing.X, 0, (float)j*ControlPointSpacing.Y);
-			ControlNetworkPositions[i].Add(ControlNetwork[i][j].Position);
-			ControlNetwork[i][j].SetMeta(NodeHasSurfaceMetaName, false);
+			ControlNetwork[i][j].Weight = w;
+			ControlNetworkPositions[i].Add(ControlNetwork[i][j].GetPosVec());
 		}
 
 		public void RemoveSurfaceExternally(Vector2 Loc)
@@ -347,10 +342,10 @@ namespace BezierSurfaces
 			ControlPoint meshInstance = new ControlPoint();
 			
 			meshInstance.Mesh = CNShape;
-			meshInstance.Name = NodePrefix + Loc.X.ToString() + "_" + Loc.Z.ToString();
 
 			AddControlPoint(meshInstance);
 
+			meshInstance.SetNameWithUVW(Loc);
 			return meshInstance;
 		}
 
@@ -428,9 +423,5 @@ namespace BezierSurfaces
 				return k;
 			}
 		#endregion
-
-		
 	}
-
-	
 }
