@@ -3,7 +3,7 @@ using System;
 using System.Numerics;
 
 #nullable enable
-namespace BezierSurfaces.Types
+namespace NURBs.Types
 {
 	namespace VectorVariants
 	{

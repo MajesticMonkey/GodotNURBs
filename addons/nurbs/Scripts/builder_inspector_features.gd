@@ -2,7 +2,7 @@
 extends EditorInspectorPlugin
 
 func _can_handle(object: Object) -> bool:
-	return object is BezierSurfaceBuilder
+	return object is NURBBuilder
 
 func _parse_begin(object: Object) -> void:
 	var reload_button = Button.new()

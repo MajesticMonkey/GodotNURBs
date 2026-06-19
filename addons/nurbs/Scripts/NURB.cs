@@ -4,25 +4,25 @@ using System.Linq.Expressions;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
-using BezierSurfaces.Types.Matrix;
-using BezierSurfaces.Types.VectorVariants.HalfVector;
-using BezierSurfaces.Types.VectorVariants.ByteVector;
-using BezierSurfaces.Types.VectorVariants.BitVector;
-using BezierSurfaces;
+using NURBs.Types.Matrix;
+using NURBs.Types.VectorVariants.HalfVector;
+using NURBs.Types.VectorVariants.ByteVector;
+using NURBs.Types.VectorVariants.BitVector;
+using NURBs;
 
 using static System.Math;
 
-namespace BezierSurfaces
+namespace NURBs
 {
-	#region BezierSurfaceClass
-		public partial class BezierSurface : MeshInstance3D
+	#region NURBClass
+		public partial class NURB : MeshInstance3D
 		{
 			[Export]
 			public float Weight = 0;
 
 			public Vector2 CNLoc = new Vector2(0, 0);
 
-			readonly BezierSurfaceBuilder parent;
+			readonly NURBBuilder parent;
 
 			private bool Loading = false;
 			private bool QueuedForReload = false;
@@ -49,12 +49,12 @@ namespace BezierSurfaces
 			#endregion
 			
 			
-			public BezierSurface()
+			public NURB()
 			{
 				// This constructor is only used for the editor to create a preview of the surface. It should never be used for actual surfaces, and thus doesn't need to be fully initalized.
 			}
 
-			public BezierSurface(BezierSurfaceBuilder Parent, Vector2 CNLocation)
+			public NURB(NURBBuilder Parent, Vector2 CNLocation)
 			{
 				parent = Parent; // this MUST be initalized first. Other values use lambda expressions to hide the use of the parent pointer
 				CNLoc = CNLocation;
@@ -247,36 +247,7 @@ namespace BezierSurfaces
 				}
 				return [STMForklift, SNMForklift];
 			}
-			/*
-			private static Vector3[,] GetSurfaceNormals(Matrix NB, Matrix MB, Matrix NBD, Matrix MBD, Matrix NPB, Matrix MPB, Vector4[,] CN, ByteVector2 SVMSize)
-			{
-
-				Vector3[,] SNMForklift = new Vector3[SVMSize.X, SVMSize.Y];				
-				
-				for (byte u = 0; u < SVMSize.X; u++)
-				{
-					for (byte v = 0; v < SVMSize.Y; v++)
-					{
-						SNMForklift[u, v] = ComputeVertexNormal(u, v, NB, MB, NBD, MBD, NPB, MPB, CN, SVMSize);
-
-					}
-				}
-
-				return SNMForklift;
-			}
-
-			private static Vector3 ComputeVertexNormal(byte u, byte v, Matrix NB, Matrix MB, Matrix NBD, Matrix MBD, Matrix NPB, Matrix MPB, Vector4[,] CN, ByteVector2 SVMSize)
-			{
-				Vector4 UndividedA = ComputeVertexVector(u, v, NBD, MB, NPB, MPB, CN, SVMSize);
-				Vector3 TangentA = new Vector3(UndividedA.X, UndividedA.Y, UndividedA.Z)
-				Vector4 UndividedB = ComputeVertexVector(u, v, NB, MBD, NPB, MPB, CN, SVMSize);
-				Vector3 TangentB = new Vector3(UndividedB.X, UndividedB.Y, UndividedB.Z)
-
-				Vector3 Normal = TangentA.Cross(TangentB).Normalized();
-				
-				return Normal;
-			}
-			*/
+		
 			private static Vector4 ComputeVertexVector(byte u, byte v, Matrix NB, Matrix MB, Matrix NPB, Matrix MPB, Vector4[,] CN, ByteVector2 SVMSize)
 			{
 				// Calculates the transform or tangent vector of a given point on the bezier surface

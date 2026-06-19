@@ -1,9 +1,9 @@
 using Godot;
 using Godot.Collections;
 using System;
-using BezierSurfaces;
+using NURBs;
 
-namespace BezierSurfaces
+namespace NURBs
 {
 	[GlobalClass, Tool]
 	public partial class ControlPoint : MeshInstance3D
@@ -16,10 +16,17 @@ namespace BezierSurfaces
 
 		[Export]
 		public float Weight = 1.0f;
-		
+
 		public override void _EnterTree()
 		{
-			PropertyListChanged += _OnPropertyChanged;
+			Vector3 Forklift = LocFromName();
+			Loc = new Vector2(Forklift.X, Forklift.Y);
+			Weight = Forklift.Z;
+			Callable PListChange = Callable.From(_OnPropertyChanged);
+			if (!IsConnected(SignalName.PropertyListChanged, PListChange))
+			{
+				this.Connect(SignalName.PropertyListChanged, PListChange);
+			}
 		}
 
 		public void _OnPropertyChanged()
@@ -43,7 +50,7 @@ namespace BezierSurfaces
 		{
 			if (HasSurface ^ Add)
 			{
-				BezierSurfaceBuilder builder = GetParent();
+				NURBBuilder builder = GetParent();
 
 				HasSurface = !HasSurface;
 
@@ -61,14 +68,14 @@ namespace BezierSurfaces
 			return new Vector4(Position.X, Position.Y, Position.Z, Weight);
 		}
 
-		public new BezierSurfaceBuilder GetParent()
+		public new NURBBuilder GetParent()
 		{
 			var forklift = base.GetParent();
-			if (forklift is BezierSurfaceBuilder builder)
+			if (forklift is NURBBuilder builder)
 			{
 				return builder;
 			} else {
-				throw new InvalidOperationException("This control point has somehow been unparented from a BezierSurfaceBuilder. Please reload your project and hope for the best.");
+				throw new InvalidOperationException("This control point has somehow been unparented from a NURBBuilder. Please reload your project and hope for the best.");
 			}
 		}
 

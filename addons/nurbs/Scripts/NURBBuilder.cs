@@ -4,11 +4,11 @@ using System.Linq.Expressions;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
-using BezierSurfaces.Types.Matrix;
-using BezierSurfaces.Types.VectorVariants.HalfVector;
-using BezierSurfaces.Types.VectorVariants.ByteVector;
-using BezierSurfaces.Types.VectorVariants.BitVector;
-using BezierSurfaces;
+using NURBs.Types.Matrix;
+using NURBs.Types.VectorVariants.HalfVector;
+using NURBs.Types.VectorVariants.ByteVector;
+using NURBs.Types.VectorVariants.BitVector;
+using NURBs;
 
 using static System.Math;
 
@@ -16,14 +16,12 @@ using static System.Math;
 
 
 
-namespace BezierSurfaces
+namespace NURBs
 {
 	[GlobalClass, Tool]
-	public partial class BezierSurfaceBuilder : Node3D
+	public partial class NURBBuilder : Node3D
 	{
-		Action<string> Print = (a) => GD.Print(a);
-		
-		private List<BezierSurface> SurfaceNetwork = new List<BezierSurface>();
+		private List<NURB> SurfaceNetwork = new List<NURB>();
 		public List<List<ControlPoint>> ControlNetwork = new List<List<ControlPoint>>();
 		public List<List<Vector4>> ControlNetworkPositions = new List<List<Vector4>>();
 		
@@ -83,7 +81,7 @@ namespace BezierSurfaces
 
 		public Vector2 ControlPointSpacing;
 
-		public readonly String BezierPrefix = "BezierSurface_";
+		public readonly String BezierPrefix = "NURB_";
 		public readonly String NodePrefix = "ControlPoint_";
 		public readonly String NodeHasSurfaceMetaName = "HasSurface";
 
@@ -91,17 +89,17 @@ namespace BezierSurfaces
 
 		private bool Loaded = false;
 
-		public BezierSurfaceBuilder()
+		public NURBBuilder()
 		{
 			UpdateMaintenance();
 		}
 
 		public override void _Ready()
 		{
-			Print("Ready!");
+			GD.Print("Ready!");
 			if (!Loaded)
 			{
-				Print("Loading!");
+				GD.Print("Loading!");
 				Loaded = true;
 				LoadSurfaces();
 			}
@@ -117,6 +115,7 @@ namespace BezierSurfaces
 					}
 				}
 			}
+			GD.Print("Queue Freed!");
 			UpdateAllSurfaces();
 		}
 
@@ -130,12 +129,13 @@ namespace BezierSurfaces
 
 		public void LoadSurfaces()
 		{
-			SurfaceNetwork = new List<BezierSurface>();
+			SurfaceNetwork = new List<NURB>();
 			ControlNetwork = new List<List<ControlPoint>>();
 			ControlNetworkPositions = new List<List<Vector4>>();
 
 			ReattainChildren();
 			
+			GD.Print("Attained Children!");
 			for (int i = 0; i < ControlNetwork.Count; i++)
 			{
 				for (int j = 0; j < ControlNetwork[i].Count; j++)
@@ -146,6 +146,7 @@ namespace BezierSurfaces
 					}
 				}
 			}
+			GD.Print("Loaded!");
 		}
 
 		public void ReattainChildren()
@@ -165,6 +166,7 @@ namespace BezierSurfaces
 
 			while (children.Count > 0)
 			{
+				GD.Print(children.Count);
 				for (int i = 0; i < children.Count; i++)
 				{
 					if (children[i] is ControlPoint Point)
@@ -262,7 +264,7 @@ namespace BezierSurfaces
 				}
 			}
 
-			List<BezierSurface> outdatedSurfaces = new List<BezierSurface>();
+			List<NURB> outdatedSurfaces = new List<NURB>();
 			for (int i = 0; i < SurfaceNetwork.Count; i++)
 			{
 				for (int j = 0; j < outdatedControlNodes.Count; j++)
@@ -285,7 +287,7 @@ namespace BezierSurfaces
 			CreateSurface(Loc);
 		}
 
-		private BezierSurface CreateSurface(Vector2 Loc)
+		private NURB CreateSurface(Vector2 Loc)
 		{
 			ControlNetwork[(int)Loc.X][(int)Loc.Y].HasSurface = true;
 			for (int i = 0; i < Loc.X + CNSize.X; i++)
@@ -304,7 +306,7 @@ namespace BezierSurfaces
 				}
 			}
 
-			BezierSurface surface = new BezierSurface(this, Loc);
+			NURB surface = new NURB(this, Loc);
 
 			SurfaceNetwork.Add(surface);
 			
