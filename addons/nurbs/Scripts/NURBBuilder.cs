@@ -27,8 +27,6 @@ namespace NURBs
 		
 		[Export]
 		public bool AutoUpdate = true; // Whether or not to continuously update the surfaces.
-		[Export]
-		public bool EdgeDebugMode = false;
 
 
 		[ExportGroup("Control Nodes")]
@@ -96,10 +94,8 @@ namespace NURBs
 
 		public override void _Ready()
 		{
-			GD.Print("Ready!");
 			if (!Loaded)
 			{
-				GD.Print("Loading!");
 				Loaded = true;
 				LoadSurfaces();
 			}
@@ -115,7 +111,6 @@ namespace NURBs
 					}
 				}
 			}
-			GD.Print("Queue Freed!");
 			UpdateAllSurfaces();
 		}
 
@@ -135,7 +130,6 @@ namespace NURBs
 
 			ReattainChildren();
 			
-			GD.Print("Attained Children!");
 			for (int i = 0; i < ControlNetwork.Count; i++)
 			{
 				for (int j = 0; j < ControlNetwork[i].Count; j++)
@@ -146,7 +140,6 @@ namespace NURBs
 					}
 				}
 			}
-			GD.Print("Loaded!");
 		}
 
 		public void ReattainChildren()
@@ -341,13 +334,12 @@ namespace NURBs
 		
 		public ControlPoint ConstControlPoint(Vector3 Loc) // Construct Control Point
 		{
-			ControlPoint meshInstance = new ControlPoint();
+			ControlPoint meshInstance = new ControlPoint(NodePrefix, Loc);
 			
 			meshInstance.Mesh = CNShape;
 
 			AddControlPoint(meshInstance);
 
-			meshInstance.SetNameWithUVW(Loc);
 			return meshInstance;
 		}
 

@@ -14,8 +14,21 @@ namespace NURBs
 
 		public string HasSurfaceMetaName = "HasSurface";
 
+		public string NamePrefix = "";
+
 		[Export]
 		public float Weight = 1.0f;
+
+		public ControlPoint()
+		{
+
+		}
+
+		public ControlPoint(string Prefix, Vector3 LocAndWeight)
+		{
+			NamePrefix = Prefix;
+			SetNameWithUVW(LocAndWeight);
+		}
 
 		public override void _EnterTree()
 		{
@@ -93,8 +106,7 @@ namespace NURBs
 
 		public void SetNameWithUVW(Vector3 UVW)
 		{
-			string Prefix = GetParent().NodePrefix;
-			string NameForklift = Prefix + UVW.X.ToString() + "_" + UVW.Y.ToString() + "_" + UVW.Z.ToString();
+			string NameForklift = NamePrefix + UVW.X.ToString() + "_" + UVW.Y.ToString() + "_" + UVW.Z.ToString();
 			if (HasSurface) { NameForklift += "_"; }
 			Name = NameForklift;
 		}
