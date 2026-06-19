@@ -10,11 +10,17 @@ namespace NURBs
 	{
 		public Vector2 Loc = new Vector2(0, 0);
 
+		public bool WouldCreateOverlappingSurface = false;
+
 		public bool HasSurface = false;
 
 		public string HasSurfaceMetaName = "HasSurface";
 
 		public string NamePrefix = "";
+
+		public NURBBuilder Builder;
+
+		public Callable PListChange;
 
 		[Export]
 		public float Weight = 1.0f;
@@ -35,17 +41,23 @@ namespace NURBs
 			Vector3 Forklift = LocFromName();
 			Loc = new Vector2(Forklift.X, Forklift.Y);
 			Weight = Forklift.Z;
-			Callable PListChange = Callable.From(_OnPropertyChanged);
+			PListChange = Callable.From(_OnPropertyChanged);
 			if (!IsConnected(SignalName.PropertyListChanged, PListChange))
 			{
 				this.Connect(SignalName.PropertyListChanged, PListChange);
 			}
 		}
 
+		public override void _ExitTree()
+		{
+			if (IsConnected(SignalName.PropertyListChanged, PListChange))
+			{
+				this.Disconnect(SignalName.PropertyListChanged, PListChange);
+			}
+		}
+
 		public void _OnPropertyChanged()
 		{
-			var builder = GetParent();
-
 			SetNameWithUVW(new Vector3(Loc.X, Loc.Y, Weight));
 		}
 
@@ -63,11 +75,11 @@ namespace NURBs
 		{
 			if (HasSurface ^ Add)
 			{
-				NURBBuilder builder = GetParent();
+				NURBBuilder Builder = GetParent();
 
 				HasSurface = !HasSurface;
 
-				if (HasSurface) { builder.CreateSurfaceExternally(Loc); } else { builder.RemoveSurfaceExternally(Loc); }
+				if (HasSurface) { Builder.CreateSurfaceExternally(Loc); } else { Builder.RemoveSurfaceExternally(Loc); }
 
 				char LastChar = ((string)Name)[^1];
 

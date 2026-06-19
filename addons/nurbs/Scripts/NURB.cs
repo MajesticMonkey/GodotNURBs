@@ -17,9 +17,6 @@ namespace NURBs
 	#region NURBClass
 		public partial class NURB : MeshInstance3D
 		{
-			[Export]
-			public float Weight = 0;
-
 			public Vector2 CNLoc = new Vector2(0, 0);
 
 			readonly NURBBuilder parent;

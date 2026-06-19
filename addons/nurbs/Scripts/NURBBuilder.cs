@@ -164,6 +164,7 @@ namespace NURBs
 				{
 					if (children[i] is ControlPoint Point)
 					{
+						GD.Print("Control Point!");
 						if (Point.Loc.X < ControlNetwork.Count)
 						{
 							if ((float)ControlNetwork[(int)Point.Loc.X].Count == Point.Loc.Y)
@@ -230,7 +231,24 @@ namespace NURBs
 			ControlPointSpacing = new Vector2((float)SSize.X/((float)CNSize.X - (float)1), (float)SSize.Y/((float)CNSize.Y - (float)1));
 		}
 
-		
+		public void UpdateControlPoints()
+		{
+			for (int i = 0; i < ControlNetwork.Count; i++)
+			{
+				for (int j = 0; j < ControlNetwork[i].Count; j++)
+				{
+					ControlNetwork[i][j].WouldCreateOverlappingSurface = false;
+					for (int n = 0; n < SurfaceNetwork.Count; n++)
+					{
+						if (Math.Abs(i - SurfaceNetwork[n].CNLoc.X) < (CNSize.X - 1) && Math.Abs(j - SurfaceNetwork[n].CNLoc.Y) < (CNSize.Y - 1))
+						{
+							ControlNetwork[i][j].WouldCreateOverlappingSurface = true;
+							break;
+						}
+					}
+				}
+			}
+		}
 
 		public async void UpdateAllSurfaces()
 		{
@@ -303,7 +321,10 @@ namespace NURBs
 
 			SurfaceNetwork.Add(surface);
 			
+			UpdateControlPoints();
+
 			return surface;
+
 		}
 
 		private void AddPoint(int i, int j, float w = 1.0f)
@@ -330,6 +351,8 @@ namespace NURBs
 					SurfaceNetwork.RemoveAt(i);
 				}
 			}
+
+			UpdateControlPoints();
 		}
 		
 		public ControlPoint ConstControlPoint(Vector3 Loc) // Construct Control Point

@@ -15,9 +15,10 @@ func _parse_begin(object: Object) -> void:
 		surface_button.pressed.connect(object.RemoveSurface)
 		add_custom_control(surface_button)
 	else:
-		surface_button.text = "Add Surface Here"
-		surface_button.pressed.connect(object.CreateSurface)
-		add_custom_control(surface_button)
+		if !object.WouldCreateOverlappingSurface:
+			surface_button.text = "Add Surface Here"
+			surface_button.pressed.connect(object.CreateSurface)
+			add_custom_control(surface_button)
 
 func _parse_property(object: Object, type: Variant.Type, name: String, hint_type: PropertyHint, hint_string: String, usage_flags: int, wide: bool) -> bool:
 	if (name == "position" || name == "Weight"):
