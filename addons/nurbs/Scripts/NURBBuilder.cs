@@ -164,7 +164,6 @@ namespace NURBs
 				{
 					if (children[i] is ControlPoint Point)
 					{
-						GD.Print("Control Point!");
 						if (Point.Loc.X < ControlNetwork.Count)
 						{
 							if ((float)ControlNetwork[(int)Point.Loc.X].Count == Point.Loc.Y)
