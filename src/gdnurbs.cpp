@@ -16,6 +16,7 @@
 #include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/classes/sphere_mesh.hpp>
 
+#include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_vector2_array.hpp>
 #include <godot_cpp/variant/packed_vector3_array.hpp>
 #include <godot_cpp/variant/packed_vector4_array.hpp>
@@ -39,11 +40,64 @@ void NURB::_bind_methods (
     ClassDB::bind_method(D_METHOD("SetSceneSaveNetwork", "CN"), &NURB::SetSceneSaveNetwork);
     ClassDB::bind_method(D_METHOD("GetSceneSaveNetwork"), &NURB::GetSceneSaveNetwork);
 
-    ADD_PROPERTY(PropertyInfo(Variant::PACKED_VECTOR4_ARRAY, "SceneSaveNetwork"), "SetSceneSaveNetwork", "GetSceneSaveNetwork");
+    ADD_PROPERTY(
+        PropertyInfo(Variant::PACKED_VECTOR4_ARRAY, "SceneSaveNetwork"),
+        "SetSceneSaveNetwork", "GetSceneSaveNetwork");
+
+    ClassDB::bind_method(D_METHOD("SetLoDDetails", "Values"), &NURB::SetLoDDetails);
+    ClassDB::bind_method(D_METHOD("GetLoDDetails"), &NURB::GetLoDDetails);
+
+    ADD_PROPERTY(
+        PropertyInfo(Variant::DICTIONARY, "Levels of Detail", PROPERTY_HINT_DICTIONARY_TYPE, "3:;2:"),
+        "SetLoDDetails", "GetLoDDetails");
+
+    ClassDB::bind_method(D_METHOD("SetPED", "Value"), &NURB::SetPED);
+    ClassDB::bind_method(D_METHOD("GetPED"), &NURB::GetPED);
+
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Preserve Edge Detail"), "SetPED", "GetPED");
 }
+
+void NURB::SetLoDDetails ( const godot::Dictionary &Values ) {
+    LoDDetails = Values;
+    
+    godot::Array keys = LoDDetails.keys();
+
+    for (int i = 0; i < keys.size(); i++) {
+        double key = 1;
+        int value = 3;
+        
+        if (keys[i].get_type() == Variant::FLOAT || keys[i].get_type() == Variant::INT) {
+            key = keys[i];
+        }
+        
+        if (LoDDetails[keys[i]].get_type() == Variant::INT) {
+            value = LoDDetails[keys[i]];
+        }
+
+        if ( abs(key) <= 0.01 ) {
+            LoDDetails.erase(key);
+            UtilityFunctions::push_warning("You cannot have a key <= 0.0");
+            break;
+        }
+        if ( value < 2 ) {
+            LoDDetails[key] = 2;
+        }
+    }
+
+    // MAKE THIS FUNCTION RELOAD THE SURFACE, BUT MAKE IT NOT DO IT WHEN THIS FUNCTION IS CALLED BEFORE ENTER TREE, SINCE THERE AREN'T ANY DETAILS YET ABOUT HOW TO GENERATE THE MESH
+}
+godot::Dictionary NURB::GetLoDDetails ( ) const { return LoDDetails; }
+
+void NURB::SetPED ( const bool &PED ) {
+    PreserveEdgeDetail = PED;
+    // MAKE THIS FUNCTION RELOAD THE SURFACE, BUT MAKE IT NOT DO IT WHEN THIS FUNCTION IS CALLED BEFORE ENTER TREE, SINCE THERE AREN'T ANY DETAILS YET ABOUT HOW TO GENERATE THE MESH
+}
+bool NURB::GetPED ( ) const { return PreserveEdgeDetail; }
 
 void NURB::SetSceneSaveNetwork ( const PackedVector4Array &Network ) { SceneSaveNetwork = Network; }
 godot::PackedVector4Array NURB::GetSceneSaveNetwork ( ) const { return SceneSaveNetwork; }
+
+
 
 
 
@@ -355,11 +409,16 @@ void NURB::ReloadSurface(
     surfacearray.resize(Mesh::ARRAY_MAX);
 
 
-    surfacearray[Mesh::ARRAY_TEX_UV] = godot::Variant(WindTriangles<Vector2>(meshdata.uvs, VPS)); // UVs
-    surfacearray[Mesh::ARRAY_VERTEX] = godot::Variant(WindTriangles<Vector3>(meshdata.positions, VPS)); // Transforms
-    surfacearray[Mesh::ARRAY_NORMAL] = godot::Variant(WindTriangles<Vector3>(meshdata.normals, VPS)); // Normals
+    surfacearray[Mesh::ARRAY_TEX_UV] = godot::Variant(StraightenTriangles<Vector2>(meshdata.uvs, VPS)); // UVs
+    surfacearray[Mesh::ARRAY_VERTEX] = godot::Variant(StraightenTriangles<Vector3>(meshdata.positions, VPS)); // Transforms
+    surfacearray[Mesh::ARRAY_NORMAL] = godot::Variant(StraightenTriangles<Vector3>(meshdata.normals, VPS)); // Normals
+    surfacearray[Mesh::ARRAY_INDEX] = godot::Variant(ConstructLoD(VPS, 1, true));
 
-    MeshShape->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, surfacearray);
+    godot::Dictionary LoDDictionary = ConstructLoDDictionary(VPS, LoDDetails, PreserveEdgeDetail);
+
+    godot::Array BlendShapes;
+
+    MeshShape->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, surfacearray, BlendShapes, LoDDictionary);
 
     set_mesh(MeshShape);
     
@@ -370,7 +429,7 @@ void NURB::ReloadSurface(
 
 template <typename T>
 std::conditional_t<std::is_same_v<T, Vector3>, godot::PackedVector3Array, godot::PackedVector2Array>
-NURB::WindTriangles(
+NURB::StraightenTriangles(
     std::vector<T> verticies,
     int VPS
 )
@@ -382,19 +441,199 @@ NURB::WindTriangles(
 
     PackType PackRAT; // Packed Reordered Array of Triangles
 
-    for (int i = 0; i < VPS - 1; i++) {
-        for (int j = 0; j < VPS - 1; j++) {
-            PackRAT.append(verticies[i * VPS + j]);
-            PackRAT.append(verticies[(i + 1) * VPS + j]);
-            PackRAT.append(verticies[(i + 1) * VPS + (j + 1)]);
-
-            PackRAT.append(verticies[(i + 1) * VPS + (j + 1)]);
-            PackRAT.append(verticies[i * VPS + (j + 1)]);
-            PackRAT.append(verticies[i * VPS + j]);
+    for (int i = 0; i < VPS; i++) {
+        for (int j = 0; j < VPS; j++) {
+            PackRAT.append(verticies[i + j * VPS]);
         }
     }
 
     return PackRAT;
+}
+
+godot::PackedInt32Array NURB::WindIndexes( // Deprecated, Remove function when certain it won't be used again.
+    int VPS
+)
+{
+
+    godot::PackedInt32Array PackRAT; // Packed Reordered Array of Triangles
+
+    for (int i = 0; i < VPS - 1; i++) {
+        for (int j = 0; j < VPS - 1; j++) {
+            PackRAT.append(i + j * VPS);
+            PackRAT.append((i + 1) + j * VPS);
+            PackRAT.append((i + 1) + (j + 1) * VPS);
+
+            PackRAT.append((i + 1) + (j + 1) * VPS);
+            PackRAT.append(i + (j + 1) * VPS);
+            PackRAT.append(i + j * VPS);
+        }
+    }
+
+    return PackRAT;
+}
+
+godot::Dictionary NURB::ConstructLoDDictionary(
+    int VPS, // Verticies per surface
+    godot::Dictionary LoDeets,
+    bool PED
+)
+{
+    godot::Array keys = LoDeets.keys();
+
+    godot::Dictionary LoDDictionary = {};
+    for (int i = 0; i < keys.size(); i++) {
+        LoDDictionary[keys[i]] = ConstructLoD(VPS, LoDeets[keys[i]], PED);
+    }
+
+    return LoDDictionary;
+}
+
+godot::PackedInt32Array NURB::ConstructLoD(
+    int VPS,
+    int KeepFreq,
+    bool PED
+)
+{
+    godot::PackedInt32Array PackRAT;
+
+    int Edge = VPS - 1;
+
+    
+    for (int i = 0; i < VPS; i++) {
+        for (int j = 0; j < VPS; j++) {
+            if (PED && KeepFreq != 1) {
+            if (i == 0 || j == 0 || i == Edge || j == Edge) { // EDGE cases, get it? 
+                if (j == VPS - 1 && i != VPS - 1) {
+                    PackRAT.append(i + (j * VPS)); // Self
+                    PackRAT.append(ClosestKeptPoint(KeepFreq, VPS, i, j));
+                    PackRAT.append((i + 1) + (j * VPS));
+                } else if (i == 0) {
+                    PackRAT.append(i + (j * VPS)); // Self
+                    PackRAT.append(ClosestKeptPoint(KeepFreq, VPS, i, j));
+                    PackRAT.append((j + 1) * VPS);
+                }
+                
+                if (i == VPS - 1 && j != VPS - 1) {
+                    PackRAT.append(ClosestKeptPoint(KeepFreq, VPS, i, j));
+                    PackRAT.append(i + (j * VPS)); // Self
+                    PackRAT.append(i + ((j + 1) * VPS));
+                } else if (j == 0) {
+                    PackRAT.append(ClosestKeptPoint(KeepFreq, VPS, i, j));
+                    PackRAT.append(i + (j * VPS)); // Self
+                    PackRAT.append((i + 1) + (j * VPS));
+                }
+            } else if (i % KeepFreq == 0 && j % KeepFreq == 0) {
+                if (j + KeepFreq < Edge) {
+                    if (i + KeepFreq >= Edge) {
+                        PackRAT.append(i + (j * VPS)); // Self
+                        PackRAT.append((Edge) + ((j + (ceil(static_cast<float>(KeepFreq) / 2.0f)))) * VPS);
+                        PackRAT.append(i + ((j + KeepFreq) * VPS)); // Vertically sequential kept vertex
+                    }
+                    if (i - KeepFreq == 0) {
+                        PackRAT.append(i + (j * VPS)); // Self
+                        PackRAT.append(i + ((j + KeepFreq) * VPS)); // Vertically sequential kept vertex
+                        PackRAT.append((j + (ceil(static_cast<float>(KeepFreq) / 2.0f))) * VPS);
+
+                    }
+                }
+                if (i + KeepFreq < Edge) {
+                    if (j + KeepFreq >= Edge) {
+                        PackRAT.append(i + (j * VPS)); // Self
+                        PackRAT.append((i + KeepFreq) + (j * VPS)); // Horizontally sequential kept vertex
+                        if (KeepFreq == 1) {
+                            PackRAT.append((i) + ((j + 1) * VPS));
+                        } else {
+                            PackRAT.append((i + (ceil((static_cast<float>(KeepFreq) / 2.0f)))) + ((Edge) * VPS));
+                        }
+                    }
+                    if (j - KeepFreq == 0) {
+                        PackRAT.append(i + (j * VPS)); // Self
+                        PackRAT.append(i + (ceil(static_cast<float>(KeepFreq) / 2.0f)));
+                        PackRAT.append((i + KeepFreq) + (j * VPS)); // Vertically sequential kept vertex
+                    }
+                }
+                if (i + KeepFreq < Edge && j + KeepFreq < Edge) {
+                    PackRAT.append(i + (j * VPS)); // Self
+                    PackRAT.append((i + KeepFreq) + (j * VPS)); // Horizontally sequential kept vertex
+                    PackRAT.append(i + ((j + KeepFreq) * VPS)); // Vertically sequential kept vertex
+                }
+                if (i - KeepFreq > 0 && j - KeepFreq > 0) {
+                    PackRAT.append(i + (j * VPS)); // Self
+                    PackRAT.append((i - KeepFreq) + (j * VPS)); // Horizontally unsequential kept vertex
+                    PackRAT.append(i + ((j - KeepFreq) * VPS)); // Vertically unsequential kept vertex
+                }
+            }
+            } else {
+                if (i % KeepFreq == 0 && j % KeepFreq == 0 && i != VPS - 1 && j != VPS - 1) {
+                    int iinc = KeepFreq;
+                    int jinc = KeepFreq;
+
+                    if (i + KeepFreq > VPS - 1) { iinc = (VPS - 1) - i; }
+                    if (j + KeepFreq > VPS - 1) { jinc = (VPS - 1) - j; }
+
+                    PackRAT.append(i + j * VPS);
+                    PackRAT.append((i + iinc) + j * VPS);
+                    PackRAT.append((i + iinc) + (j + jinc) * VPS);
+
+                    PackRAT.append((i + iinc) + (j + jinc) * VPS);
+                    PackRAT.append(i + (j + jinc) * VPS);
+                    PackRAT.append(i + j * VPS);
+                }
+                
+            }
+        }
+    }
+
+    return PackRAT;
+
+    /*
+    NOTES:
+
+    If we start to have performance issues, this function is a prime option to optimize. 
+    */
+}
+
+int NURB::ClosestKeptPoint(
+    int KeepFreq,
+    int VPS,
+    int i,
+    int j
+)
+{
+    int n;
+    int m;
+    
+    if (i == 0) {
+        n = KeepFreq;
+    } else {
+        float np = (static_cast<float>(i) / static_cast<float>(KeepFreq));
+        if (i - KeepFreq < 0) {
+            np = ceil(np);
+        } else if (round(np) * KeepFreq >= (VPS - 1)) {
+            np = floor(np);
+        } else {
+            np = round(np);
+        }
+        n = np * KeepFreq;
+    }
+
+
+    
+    if (j == 0) {
+        m = KeepFreq;
+    } else {
+        float mp = static_cast<float>(j) / static_cast<float>(KeepFreq);
+        if (j - KeepFreq < 0) {
+            mp = ceil(mp);
+        } else if(round(mp) * KeepFreq >= (VPS - 1)) {
+            mp = floor(mp);
+        } else {
+            mp = round(mp);
+        }
+        m = mp * KeepFreq;
+    }
+
+    return n + (m * VPS);
 }
 
 NURB::MeshData NURB::IterateOverParametricPoints(

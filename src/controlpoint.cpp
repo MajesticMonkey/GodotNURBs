@@ -16,7 +16,12 @@ void ControlPoint::_bind_methods (
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "Weight"), "set_weight", "get_weight");
 }
 
-void ControlPoint::set_weight ( const float &W ) { Weight = W; }
+void ControlPoint::set_weight ( const float &W ) {
+    Weight = W;
+    if ( Weight <= 0 ) {
+        Weight = .01;
+    }
+}
 float ControlPoint::get_weight ( ) const { return Weight; }
 
 void ControlPoint::set_loc ( const Vector2i &L ) { Loc = L; }

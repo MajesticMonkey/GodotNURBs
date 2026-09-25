@@ -15,6 +15,7 @@
 #include <godot_cpp/classes/static_body3d.hpp>
 
 #include <godot_cpp/variant/array.hpp>
+#include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_vector2_array.hpp>
 #include <godot_cpp/variant/packed_vector3_array.hpp>
 #include <godot_cpp/variant/packed_vector4_array.hpp>
@@ -59,6 +60,10 @@ namespace godot {
         GDCLASS(NURB, AbstractNURB);
 
         private:
+            godot::Dictionary LoDDetails;
+            bool PreserveEdgeDetail = true;
+
+            
             godot::NodePath XPPath;
             godot::NodePath XNPath;
             godot::NodePath ZPPath;
@@ -119,9 +124,32 @@ namespace godot {
 
             template <typename T>
             std::conditional_t<std::is_same_v<T, Vector3>, godot::PackedVector3Array, godot::PackedVector2Array>
-            WindTriangles(
+            StraightenTriangles(
                 std::vector<T> verticies,
                 int VPS
+            );
+
+            godot::PackedInt32Array WindIndexes( // Deprecated, Remove function when certain it won't be used again.
+                int VPS
+            );
+            
+            godot::Dictionary ConstructLoDDictionary(
+                int VPS,
+                godot::Dictionary LoDeets,
+                bool PED
+            );
+
+            godot::PackedInt32Array ConstructLoD(
+                int VPS,
+                int RmvFreq,
+                bool PED
+            );
+
+            int ClosestKeptPoint(
+                int KeepFreq,
+                int VPS,
+                int i,
+                int j
             );
 
             struct MeshData {
@@ -165,9 +193,14 @@ namespace godot {
             void _selection_changed();
 
 
+            void SetLoDDetails(const godot::Dictionary &Values);
+            godot::Dictionary GetLoDDetails() const;
+
+            void SetPED ( const bool &PED );
+            bool GetPED ( ) const;
 
             void UpdateSceneSaveNetwork(std::array<Eigen::Matrix<float, 4, 4>, 4> CN);
-            void SetSceneSaveNetwork(const PackedVector4Array &Network);
+            void SetSceneSaveNetwork(const godot::PackedVector4Array &Network);
             godot::PackedVector4Array GetSceneSaveNetwork() const;
 
             void SetXPPath(const godot::NodePath &N);
@@ -186,7 +219,6 @@ namespace godot {
 
             NURB();
             ~NURB();
-        
     };
 }
 
