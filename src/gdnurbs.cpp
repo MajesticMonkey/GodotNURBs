@@ -63,20 +63,12 @@ void NURB::SetLoDDetails ( const godot::Dictionary &Values ) {
     godot::Array keys = LoDDetails.keys();
 
     for (int i = 0; i < keys.size(); i++) {
-        double key = 1;
-        int value = 3;
-        
-        if (keys[i].get_type() == Variant::FLOAT || keys[i].get_type() == Variant::INT) {
-            key = keys[i];
-        }
-        
-        if (LoDDetails[keys[i]].get_type() == Variant::INT) {
-            value = LoDDetails[keys[i]];
-        }
+        double key = keys[i];
+        double value = LoDDetails[keys[i]];
 
         if ( abs(key) <= 0.01 ) {
             LoDDetails.erase(key);
-            UtilityFunctions::push_warning("You cannot have a key <= 0.0");
+            UtilityFunctions::push_warning("Levels of Detail cannot have a key <= 0.0");
             break;
         }
         if ( value < 2 ) {
@@ -84,13 +76,17 @@ void NURB::SetLoDDetails ( const godot::Dictionary &Values ) {
         }
     }
 
-    // MAKE THIS FUNCTION RELOAD THE SURFACE, BUT MAKE IT NOT DO IT WHEN THIS FUNCTION IS CALLED BEFORE ENTER TREE, SINCE THERE AREN'T ANY DETAILS YET ABOUT HOW TO GENERATE THE MESH
+    if (is_inside_tree()) {
+        ReloadSurface();
+    }
 }
 godot::Dictionary NURB::GetLoDDetails ( ) const { return LoDDetails; }
 
 void NURB::SetPED ( const bool &PED ) {
     PreserveEdgeDetail = PED;
-    // MAKE THIS FUNCTION RELOAD THE SURFACE, BUT MAKE IT NOT DO IT WHEN THIS FUNCTION IS CALLED BEFORE ENTER TREE, SINCE THERE AREN'T ANY DETAILS YET ABOUT HOW TO GENERATE THE MESH
+    if (is_inside_tree()) {
+        ReloadSurface();
+    }
 }
 bool NURB::GetPED ( ) const { return PreserveEdgeDetail; }
 
